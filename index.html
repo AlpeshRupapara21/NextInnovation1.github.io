@@ -167,6 +167,49 @@
   @media (min-width:900px){ .dock{display:none} }
   @media (max-width:899px){ body{padding-bottom:100px} }
 </style>
+
+<!-- ─── Analytics ──────────────────────────────────────────────────────────
+     One line switches this on: paste the GA4 Measurement ID (G-XXXXXXXXXX)
+     into GA_ID below. While it is empty nothing loads at all — no third-party
+     request, no cookie, no console noise — and every arrowTrack() call further
+     down becomes a no-op, so the instrumentation stays correct either way.
+     ────────────────────────────────────────────────────────────────────── -->
+<script>
+(function () {
+  var GA_ID = "";   /* ← paste G-XXXXXXXXXX here, nothing else to change */
+
+  window.dataLayer = window.dataLayer || [];
+  function gtag(){ dataLayer.push(arguments); }
+
+  /* The rest of the page calls arrowTrack(), never gtag(), so exactly one
+     place in this file knows whether analytics is live. */
+  window.arrowTrack = GA_ID
+    ? function (name, params) { gtag('event', name, params || {}); }
+    : function () {};
+
+  if (!GA_ID) return;
+
+  /* Consent Mode v2. This page carries no advertising and builds no ad
+     audiences, so the three ad signals stay denied — that is what is actually
+     true here, and it is what the privacy policy describes. Must be pushed
+     before config or it does not apply to the first hit. */
+  gtag('consent', 'default', {
+    ad_storage: 'denied',
+    ad_user_data: 'denied',
+    ad_personalization: 'denied',
+    analytics_storage: 'granted'
+  });
+
+  gtag('js', new Date());
+  gtag('config', GA_ID);
+
+  var s = document.createElement('script');
+  s.async = true;
+  s.src = 'https://www.googletagmanager.com/gtag/js?id=' + encodeURIComponent(GA_ID);
+  document.head.appendChild(s);
+})();
+</script>
+
 </head>
 <body>
 
@@ -393,6 +436,71 @@
     Download on Google Play
   </a>
 </div>
+
+
+<script>
+/* Conversion instrumentation. These are custom events, so they only appear in
+   GA4 reports after the first real hit (Admin → Events, within ~24h). The one
+   worth marking as a Key Event there is `install_click`. */
+(function () {
+  var track = window.arrowTrack || function () {};
+
+  /* ── Which button actually sends people to Play ────────────────────────
+     Four buttons compete for the same click: header, hero, closing block and
+     the sticky dock. `cta_location` is what separates them, and it is the
+     only way to learn which one earns its place on the page. GA4 sends events
+     over sendBeacon, so the hit survives the navigation away. */
+  Array.prototype.forEach.call(document.querySelectorAll('[data-cta]'), function (el) {
+    el.addEventListener('click', function () {
+      track('install_click', { cta_location: el.getAttribute('data-cta') });
+    });
+  });
+
+  /* ── How far down the page people get ──────────────────────────────────
+     GA4's built-in scroll measurement fires once, at 90% — too late to act on.
+     The question that changes the page is whether readers survive the hero and
+     reach the screenshots, so measure the quarters instead. */
+  var marks = [25, 50, 75, 100], fired = {}, queued = false;
+  function measure() {
+    queued = false;
+    var doc = document.documentElement;
+    var max = doc.scrollHeight - doc.clientHeight;
+    /* A page shorter than the viewport has genuinely been seen in full. */
+    var pct = max > 0 ? (window.pageYOffset / max) * 100 : 100;
+    for (var i = 0; i < marks.length; i++) {
+      var m = marks[i];
+      if (!fired[m] && pct >= m - 0.5) { fired[m] = true; track('scroll_depth', { percent: m }); }
+    }
+    if (fired[100]) window.removeEventListener('scroll', onScroll);
+  }
+  function onScroll() { if (!queued) { queued = true; requestAnimationFrame(measure); } }
+  window.addEventListener('scroll', onScroll, { passive: true });
+  measure();
+
+  /* ── Did they look at the screenshots ──────────────────────────────────
+     The rail scrolls sideways, so vertical scroll depth cannot see it. Someone
+     who swipes through the screens is a warmer install than someone who merely
+     scrolled past the section. */
+  var rail = document.querySelector('.shots');
+  if (rail) {
+    var browsed = false;
+    rail.addEventListener('scroll', function () {
+      if (browsed) return;
+      browsed = true;
+      track('screens_browsed');
+    }, { passive: true });
+  }
+
+  /* ── Legal and contact ─────────────────────────────────────────────────
+     Low volume by design, but a spike in privacy-policy clicks is worth
+     seeing rather than guessing at. */
+  Array.prototype.forEach.call(document.querySelectorAll('footer a'), function (a) {
+    a.addEventListener('click', function () {
+      track('footer_click', { link_text: (a.textContent || '').trim() });
+    });
+  });
+})();
+</script>
 
 </body>
 </html>
