@@ -1,0 +1,61 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width,initial-scale=1">
+<meta name="robots" content="noindex">
+<title>Arrow Rush</title>
+<meta property="og:title" content="Arrow Rush">
+<meta property="og:description" content="Free the serpents · can you beat my level?">
+<meta property="og:url" content="https://arrowgame.bytefleck.com/go/">
+<meta property="og:type" content="website">
+<style>
+  html,body{margin:0;height:100%;background:#060A12;color:#EAF6FF;font:16px/1.4 -apple-system,Roboto,sans-serif}
+  main{min-height:100%;display:flex;flex-direction:column;align-items:center;justify-content:center;gap:14px;text-align:center;padding:24px}
+  .k{font-size:11px;letter-spacing:4px;color:#2BE8B0;font-weight:800}
+  h1{margin:0;font-size:30px;font-weight:900}
+  a{display:inline-block;margin-top:8px;padding:14px 28px;border-radius:999px;background:#2BE8B0;color:#05201A;font-weight:900;text-decoration:none}
+</style>
+</head>
+<body>
+<main>
+  <div class="k">NEON SERPENTS</div>
+  <h1>Arrow Rush</h1>
+  <p id="msg">Opening…</p>
+  <a id="play" href="https://play.google.com/store/apps/details?id=com.arrowgame.app">Get it on Google Play</a>
+</main>
+<script>
+(function () {
+  // Every query parameter on this URL rides through Google Play as the install
+  // referrer, so the app can read it back on first open — the same string the
+  // app's own deep-link handler parses. Source and medium default to "share /
+  // referral" because that is what any link that reaches this page without
+  // explicit tags is: a person passing the game to another person.
+  var q = location.search.replace(/^\?/, '');
+  var params = new URLSearchParams(q);
+  if (!params.has('utm_source')) params.set('utm_source', 'share');
+  if (!params.has('utm_medium')) params.set('utm_medium', 'referral');
+  var referrer = params.toString();
+  var play = 'https://play.google.com/store/apps/details?id=com.arrowgame.app&referrer=' + encodeURIComponent(referrer);
+  document.getElementById('play').href = play;
+
+  var android = /android/i.test(navigator.userAgent);
+  if (!android) {
+    // Desktop / iOS: nothing to open yet; the store page is the destination.
+    location.replace(play);
+    return;
+  }
+
+  // Android: ask Chrome to open the app if it is installed, and to fall back to
+  // Play (with the referrer intact) if it is not. This is what makes the link
+  // work from inside Instagram's and TikTok's own browsers, which ignore App
+  // Links but honour intent: URLs. A verified App Link never reaches this page
+  // at all — Android opens the app directly from the tap.
+  var intent = 'intent://go?' + q + '#Intent;scheme=arrowrush;package=com.arrowgame.app;S.browser_fallback_url=' + encodeURIComponent(play) + ';end';
+  // Belt and braces for a webview that ignores intent: URLs outright.
+  setTimeout(function () { location.replace(play); }, 1500);
+  location.replace(intent);
+})();
+</script>
+</body>
+</html>
